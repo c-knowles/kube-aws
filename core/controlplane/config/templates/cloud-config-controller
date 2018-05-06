@@ -2,7 +2,7 @@
 {{- $S3URI := self.Parts.s3.Asset.S3URL -}}
  . /etc/environment
 export COREOS_PRIVATE_IPV4 COREOS_PRIVATE_IPV6 COREOS_PUBLIC_IPV4 COREOS_PUBLIC_IPV6
-REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
+REGION=$(curl -s -S -f http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
 USERDATA_FILE=userdata-controller
 
 run() {
@@ -432,7 +432,7 @@ coreos:
         [Service]
         Type=oneshot
         ExecStartPre=-/usr/bin/mkdir -p /efs
-        ExecStart=/bin/sh -c 'grep -qs /efs /proc/mounts || /usr/bin/mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 $(/usr/bin/curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone).{{ $.ElasticFileSystemID }}.efs.{{ $.Region }}.amazonaws.com:/ /efs'
+        ExecStart=/bin/sh -c 'grep -qs /efs /proc/mounts || /usr/bin/mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 $(/usr/bin/curl -s -S -f http://169.254.169.254/latest/meta-data/placement/availability-zone).{{ $.ElasticFileSystemID }}.efs.{{ $.Region }}.amazonaws.com:/ /efs'
         ExecStop=/usr/bin/umount /efs
         RemainAfterExit=yes
         [Install]
@@ -609,7 +609,7 @@ write_files:
 
       echo -n "{{ .AmazonSsmAgent.Sha1Sum }} ${TMP_DIR}/${TAR_FILE}" > "${TMP_DIR}/${CHECKSUM_FILE}"
 
-      curl --silent -L -o "${TMP_DIR}/${TAR_FILE}" "{{ .AmazonSsmAgent.DownloadUrl }}"
+      curl -s -S -f -L -o "${TMP_DIR}/${TAR_FILE}" "{{ .AmazonSsmAgent.DownloadUrl }}"
 
       sha1sum --quiet -c "${TMP_DIR}/${CHECKSUM_FILE}"
 
@@ -702,8 +702,8 @@ write_files:
       #!/bin/bash -e
       set -ue
 
-      INSTANCE_ID="$(/usr/bin/curl -s http://169.254.169.254/latest/meta-data/instance-id)"
-      SECURITY_GROUPS="$(/usr/bin/curl -s http://169.254.169.254/latest/meta-data/security-groups | tr '\n' ',')"
+      INSTANCE_ID="$(/usr/bin/curl -s -S -f http://169.254.169.254/latest/meta-data/instance-id)"
+      SECURITY_GROUPS="$(/usr/bin/curl -s -S -f http://169.254.169.254/latest/meta-data/security-groups | tr '\n' ',')"
       AUTOSCALINGGROUP="$(/usr/bin/docker run --rm --net=host \
                 {{.AWSCliImage.RepoWithTag}} aws \
                 autoscaling describe-auto-scaling-instances \
